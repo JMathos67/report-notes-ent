@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Report de notes vers l'ENT</title>
+<style>
+  :root{--blue:#2154c7;--muted:#666;--err:#b00020;--line:#e3e3e3}
+  body{font:13px -apple-system,system-ui,sans-serif;width:340px;margin:0;color:#222}
+  header{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
+  header img{width:20px;height:20px}
+  header b{flex:1}
+  header small{color:var(--muted)}
+  main{padding:4px 12px 12px}
+  label{display:block;margin:10px 0 3px;font-weight:600}
+  select,input{width:100%;box-sizing:border-box;padding:6px;border:1px solid #bbb;border-radius:6px;font:inherit;background:#fff}
+  button{margin-top:10px;padding:8px 10px;width:100%;cursor:pointer;border-radius:6px;border:1px solid #bbb;background:#f6f6f6;font:inherit}
+  button.primary{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
+  button:disabled{opacity:.45;cursor:default}
+  .hint{margin-top:6px;color:var(--muted);font-size:11px;line-height:1.4}
+  #msg{margin-top:8px;min-height:0;color:#444;white-space:pre-line;line-height:1.4}
+  #msg.err{color:var(--err)}
+  #msg:empty{display:none}
+  #msg{background:#f3f6fd;border-radius:6px;padding:6px 8px}
+  #msg.err{background:#fdf0f2}
+  .links{margin-top:12px;display:flex;justify-content:space-between}
+  a{font-size:11px;color:var(--muted);cursor:pointer;text-decoration:underline}
+  .hide{display:none!important}
+  body.busy main{cursor:progress}
+  body.busy button,body.busy select{pointer-events:none;opacity:.6}
+</style></head><body>
+<header><img src="icons/icon48.png" alt=""><b>Report de notes vers l'ENT</b><small id="version"></small></header>
+<main>
+  <div id="msg" role="status" aria-live="polite"></div>
+  <div id="setup" class="hide">
+    <label for="url">Adresse de ton Moodle</label>
+    <input id="url" placeholder="https://mon-moodle.exemple.fr" autocomplete="url">
+    <button id="connect" class="primary">Se connecter à Moodle</button>
+    <div class="hint">Une page Moodle s'ouvre : identifie-toi comme d'habitude. L'extension récupère l'autorisation toute seule et referme la page. Rouvre ensuite l'extension.</div>
+    <div class="links"><a id="manualLink">Saisir un jeton à la main</a></div>
+    <div id="manual" class="hide">
+      <label for="token">Jeton (ou lien moodlemobile://token=…)</label>
+      <input id="token" type="password" autocomplete="off">
+      <button id="save">Enregistrer le jeton</button>
+    </div>
+  </div>
+  <div id="main" class="hide">
+    <label for="course">Cours</label><select id="course"></select>
+    <label for="item">Activité notée</label><select id="item"></select>
+    <button id="load" class="primary">1. Charger les notes depuis Moodle</button>
+    <div id="classBox" class="hide">
+      <label for="group">Classe à saisir dans MBN</label><select id="group"></select>
+    </div>
+    <button id="fill" class="primary" disabled>2. Saisir dans MBN (onglet actif)</button>
+    <div class="hint">MBN : ouvre le devoir de la classe, onglet « Évaluation ». Tu cliques toi-même sur « Valider » à la fin.</div>
+    <button id="reconnect" class="hide">Se reconnecter à Moodle</button>
+    <div class="links"><a id="refresh">↻ Actualiser cours et activités</a><a id="reset">Se déconnecter</a></div>
+  </div>
+</main>
+<script src="mbn-fill.js"></script>
+<script src="popup.js"></script>
+</body></html>
