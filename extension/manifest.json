@@ -21,9 +21,6 @@
       "128": "icons/icon128.png"
     }
   },
-  "optional_permissions": [
-    "debugger"
-  ],
   "optional_host_permissions": [
     "https://*/*"
   ],
