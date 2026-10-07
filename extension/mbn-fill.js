@@ -5,10 +5,10 @@ async function fillMBN(d) {
   if (window.__notesMoodleMbnRunning) { alert('Une saisie est déjà en cours dans cet onglet.'); return; }
   window.__notesMoodleMbnRunning = true;
   // Busy overlay: shows progress and blocks the user's real clicks/keys (our synthetic events are not trusted, so they pass).
-  let ui = null, stop = false;
+  let ui = null, stop = false, bypass = false;
   const wins = [];
   const block = e => {
-    if (!e.isTrusted) return;
+    if (!e.isTrusted || bypass) return;
     if (e.type === 'keydown' && e.key === 'Escape') stop = true;
     e.stopImmediatePropagation(); e.preventDefault();
   };
@@ -107,7 +107,8 @@ async function fillMBN(d) {
 
     // Walk the grid with Enter (MBN validates the note and moves to the next student).
     const done = new Set(), typed = [];
-    const how = ['iso', 'rich', 'main', 'jq'], used = [0, 0, 0, 0];
+    const how = ['iso', 'rich', 'main', 'jq'], used = [0, 0, 0, 0, 0];
+    let toType = '';
     let hi = 0, enterFail = 0, pageDiag = '';
     const press = async h => {
       if (h === 'iso') enter(note0());
@@ -130,19 +131,30 @@ async function fillMBN(d) {
         if (done.has(k)) pb.push(who + ' : homonyme dans la grille, à vérifier');
         else {
           const v = map.get(k)[1];
-          if (/^\d+([.,]\d+)?$/.test(v)) { note.focus(); note.value = v; fire(note, ['input', 'change']); typed.push([idx, v, who]); done.add(k); progress(done.size); }
+          if (/^\d+([.,]\d+)?$/.test(v)) { note.focus(); if (d.t) { note.select(); toType = v; } else { note.value = v; fire(note, ['input', 'change']); } typed.push([idx, v, who]); done.add(k); progress(done.size); }
           else {
             const o = motif && [...motif.options].find(o => o.text.trim() === v);
             if (o) { motif.value = o.value; fire(motif, ['change']); done.add(k); progress(done.size); } else pb.push(who + ' : motif « ' + v + ' » introuvable');
           }
         }
       }
+      const toTypeNow = toType; toType = '';
       // Enter, with a ladder of methods: the one that works is remembered for the next students.
       //   iso/rich = events from this isolated script; main/jq = events sent by the extension's service worker
       //   from the page's own context (native events, then jQuery trigger).
       note.focus();
       const waitMoved = async ms => { for (let i = 0; i < ms / 20; i++) { await sleep(20); const j = cur(); if (j > idx && ready(cells[j])) return true; } return false; };
       let moved = false;
+      if (d.t) {   // compatibility mode: real key presses through the debugger API
+        bypass = true;   // our own real key presses must not be swallowed by the overlay
+        const r = await chrome.runtime.sendMessage({ type: 'nmm-type', text: toTypeNow, enter: true }).catch(e => ({ ok: false, error: String(e) }));
+        bypass = false;
+        if (!r || !r.ok) { pb.push('mode compatibilité indisponible : ' + (r && r.error || 'pas de réponse')); break; }
+        used[4]++;
+        if (idx + 1 >= cells.length) { await sleep(300); break; }
+        if (!(await waitMoved(900))) { enterFail++; if (!(await select(cells[idx + 1]))) { pb.push('arrêt : impossible de passer à l\'élève suivant après ' + done.size + ' saisie(s)'); break; } }
+        continue;
+      }
       if (idx + 1 >= cells.length) { await press(how[hi]); await sleep(300); break; }   // last student: nothing to wait for
       for (let a = hi; a < how.length && !moved; a++) {
         note.focus(); await press(how[a]);
@@ -160,9 +172,10 @@ async function fillMBN(d) {
     for (const [k, [n]] of map) if (!done.has(k) && !stop) pb.push(n + ' : absent de la grille MBN');
 
     hideUi();
+    if (d.t) { try { await chrome.runtime.sendMessage({ type: 'nmm-detach' }); } catch (e) { /* ignore */ } }
     alert('✅ ' + done.size + ' / ' + d.s.length + ' saisie(s) pour ' + d.c + '.\n' +
       (pb.length ? '\n⚠️ À vérifier / faire à la main :\n- ' + pb.join('\n- ') : '\nAucun problème.') +
-      '\n\n[Entrée — méthode 1 : ' + used[0] + ', 2 : ' + used[1] + ', 3 : ' + used[2] + ', 4 : ' + used[3] + ' ; sans effet : ' + enterFail + (pageDiag ? ' ; page : ' + pageDiag : '') + ']' +
+      '\n\n[Entrée — méthode 1 : ' + used[0] + ', 2 : ' + used[1] + ', 3 : ' + used[2] + ', 4 : ' + used[3] + ', frappes réelles : ' + used[4] + ' ; sans effet : ' + enterFail + (pageDiag ? ' ; page : ' + pageDiag : '') + ']' +
       '\nVérifie la grille puis clique sur « Valider ».');
   } catch (e) {
     hideUi();

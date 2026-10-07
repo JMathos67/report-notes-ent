@@ -39,3 +39,6 @@ Voir `PRIVACY.md`. En bref : jeton Moodle et liste des cours/activités stockés
 - L'extension ne crée pas le devoir dans MBN et ne clique jamais sur « Valider ».
 - Elle dépend de la structure des pages MBN : une mise à jour de MBN peut nécessiter une adaptation.
 - Le Moodle doit autoriser le service mobile (« Moodle mobile web service »).
+
+## Mode compatibilité (Vivaldi et autres)
+Si la saisie ne valide pas les notes dans MBN (la note apparaît dans le panneau de droite mais pas à côté du nom), coche **« Mode compatibilité (vraies frappes de clavier) »** dans la popup. Le navigateur demande l'autorisation « débogueur » et affiche un bandeau « débogage » pendant la saisie. Décoche la case pour retirer l'autorisation.

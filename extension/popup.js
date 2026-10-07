@@ -165,7 +165,9 @@ async function fillMbn() {
   let host = '';
   try { host = new URL(tab.url).hostname; } catch (e) { /* no url */ }
   if (!/(^|\.)monbureaunumerique\.fr$/.test(host)) return msg('Ouvre d\'abord la grille du devoir dans MBN, dans l\'onglet actif.', true);
-  await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: fillMBN, args: [payload] });
+  const { trusted } = await chrome.storage.local.get('trusted');
+  const ok = trusted && await chrome.permissions.contains({ permissions: ['debugger'] });
+  await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: fillMBN, args: [Object.assign({}, payload, { t: !!ok })] });
   delete byClass[cls];   // a class's grades are forgotten once sent
   await writeCache();
   showClasses();
@@ -230,6 +232,8 @@ async function start() {
   conf = st.conf || null;
   if (st.catalog) catalog = st.catalog;
   $('version').textContent = 'v' + chrome.runtime.getManifest().version;
+  const tr = (await chrome.storage.local.get('trusted')).trusted && await chrome.permissions.contains({ permissions: ['debugger'] });
+  $('trusted').checked = !!tr; $('trustedHint').classList.toggle('hide', !tr);
   if (!conf) return show('setup');
   show('main');
   await loadCourses(false);
@@ -247,6 +251,14 @@ $('course').onchange = run(async () => { await chrome.storage.local.set({ course
 $('item').onchange = run(async () => { msg(''); await chrome.storage.local.set({ ['item_' + course().id]: item().id }); await useCache(); });
 $('load').onclick = run(loadGrades);
 $('fill').onclick = run(fillMbn);
+// Compatibility mode: real key presses through the browser's debugger API (optional permission, asked on tick).
+$('trusted').onchange = async () => {
+  const on = $('trusted').checked;
+  if (on && !(await chrome.permissions.request({ permissions: ['debugger'] }))) { $('trusted').checked = false; return; }
+  if (!on) await chrome.permissions.remove({ permissions: ['debugger'] }).catch(() => {});
+  await chrome.storage.local.set({ trusted: on });
+  $('trustedHint').classList.toggle('hide', !on);
+};
 chrome.storage.onChanged.addListener((ch, area) => { if (area === 'local' && ch.conf && ch.conf.newValue && !conf) run(start)(); });
 chrome.action.setBadgeText({ text: '' });
 run(start)();

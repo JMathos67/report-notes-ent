@@ -47,3 +47,25 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
     .then(res => reply({ ok: true, d: (res || []).map(x => x.result).filter(Boolean)[0] || null }), e => reply({ ok: false, error: String(e) }));
   return true;
 });
+
+// Compatibility mode: real key presses (trusted events) through chrome.debugger — the optional "debugger" permission.
+const attached = new Set();
+if (chrome.debugger && chrome.debugger.onDetach) chrome.debugger.onDetach.addListener(src => attached.delete(src.tabId));
+const cdp = (tabId, method, params) => chrome.debugger.sendCommand({ tabId }, method, params);
+chrome.runtime.onMessage.addListener((m, sender, reply) => {
+  if (!m || (m.type !== 'nmm-type' && m.type !== 'nmm-detach') || !sender.tab || !chrome.debugger ||
+      !/(^|\.)monbureaunumerique\.fr$/.test(new URL(sender.tab.url || sender.url).hostname)) return;
+  const tabId = sender.tab.id;
+  (async () => {
+    if (m.type === 'nmm-detach') { if (attached.delete(tabId)) await chrome.debugger.detach({ tabId }); return reply({ ok: true }); }
+    if (!attached.has(tabId)) { await chrome.debugger.attach({ tabId }, '1.3'); attached.add(tabId); }
+    if (m.text) await cdp(tabId, 'Input.insertText', { text: String(m.text).slice(0, 20) });
+    if (m.enter) {
+      const k = { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 };
+      await cdp(tabId, 'Input.dispatchKeyEvent', Object.assign({ type: 'keyDown', text: '\r' }, k));
+      await cdp(tabId, 'Input.dispatchKeyEvent', Object.assign({ type: 'keyUp' }, k));
+    }
+    reply({ ok: true });
+  })().catch(e => reply({ ok: false, error: String(e) }));
+  return true;
+});
