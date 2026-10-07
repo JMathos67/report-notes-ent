@@ -107,7 +107,14 @@ async function fillMBN(d) {
 
     // Walk the grid with Enter (MBN validates the note and moves to the next student).
     const done = new Set(), typed = [];
-    let enterOk = 0, enterRich = 0, enterFail = 0;
+    const how = ['iso', 'rich', 'main', 'jq'], used = [0, 0, 0, 0];
+    let hi = 0, enterFail = 0;
+    const press = async h => {
+      if (h === 'iso') enter(note0());
+      else if (h === 'rich') enter(note0(), true);
+      else { try { await chrome.runtime.sendMessage({ type: 'nmm-enter', how: h === 'main' ? 'native' : 'jquery' }); } catch (e) { /* no background */ } }
+    };
+    const note0 = () => D.querySelector('#js-eval-eleve__note');
     const cur = () => cells.findIndex(c => { const x = boxOf(c); return x && x.checked; });
     showUi(D.defaultView || window);
     if (!(await select(cells[0]))) { hideUi(); alert('Impossible de sélectionner le premier élève : clique dessus à la main puis relance.'); return; }
@@ -130,13 +137,19 @@ async function fillMBN(d) {
           }
         }
       }
-      note.focus(); enter(note);   // empty field: Enter simply moves to the next student
-      if (idx + 1 >= cells.length) { await sleep(300); break; }
+      // Enter, with a ladder of methods: the one that works is remembered for the next students.
+      //   iso/rich = events from this isolated script; main/jq = events sent by the extension's service worker
+      //   from the page's own context (native events, then jQuery trigger).
+      note.focus();
+      const waitMoved = async ms => { for (let i = 0; i < ms / 20; i++) { await sleep(20); const j = cur(); if (j > idx && ready(cells[j])) return true; } return false; };
       let moved = false;
-      const waitMoved = async () => { for (let i = 0; i < 20; i++) { await sleep(20); const j = cur(); if (j > idx && ready(cells[j])) return true; } return false; };
-      moved = await waitMoved();
-      if (!moved) { note.focus(); enter(note, true); moved = await waitMoved(); if (moved) enterRich++; }
-      if (moved) enterOk++; else enterFail++;
+      if (idx + 1 >= cells.length) { await press(how[hi]); await sleep(300); break; }   // last student: nothing to wait for
+      for (let a = hi; a < how.length && !moved; a++) {
+        note.focus(); await press(how[a]);
+        moved = await waitMoved(a === hi ? 400 : 700);
+        if (moved) { hi = a; used[a]++; }
+      }
+      if (!moved) enterFail++;
       if (!moved && !(await select(cells[idx + 1]))) { pb.push('arrêt : impossible de passer à l\'élève suivant après ' + done.size + ' saisie(s)'); break; }
     }
 
@@ -149,7 +162,7 @@ async function fillMBN(d) {
     hideUi();
     alert('✅ ' + done.size + ' / ' + d.s.length + ' saisie(s) pour ' + d.c + '.\n' +
       (pb.length ? '\n⚠️ À vérifier / faire à la main :\n- ' + pb.join('\n- ') : '\nAucun problème.') +
-      '\n\n[Entrée prise en compte : ' + enterOk + ' fois (dont ' + enterRich + ' en 2e essai), ignorée : ' + enterFail + ' fois]' +
+      '\n\n[Entrée — méthode 1 : ' + used[0] + ', 2 : ' + used[1] + ', 3 : ' + used[2] + ', 4 : ' + used[3] + ' ; sans effet : ' + enterFail + ']' +
       '\nVérifie la grille puis clique sur « Valider ».');
   } catch (e) {
     hideUi();

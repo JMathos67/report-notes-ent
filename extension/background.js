@@ -19,3 +19,24 @@ chrome.webRequest.onHeadersReceived.addListener(async details => {
     console.warn('Report de notes vers l\'ENT : jeton illisible', e);
   }
 }, { urls: ['https://*/admin/tool/mobile/launch.php*'] }, ['responseHeaders']);
+
+// Enter sent from the page's own context (MAIN world): some browsers ignore key events built in the extension's
+// isolated world. Only accepted from a tab showing MBN, and only to press Enter in the note field.
+function pressEnterMain(how) {
+  const el = document.querySelector('#js-eval-eleve__note');
+  if (!el) return;
+  el.focus();
+  const types = ['keydown', 'keypress', 'keyup'];
+  if (how === 'native') {
+    types.forEach(t => el.dispatchEvent(new KeyboardEvent(t, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, charCode: 13, bubbles: true, cancelable: true, composed: true, view: window })));
+  } else {
+    const $ = window.jQuery || window.$;
+    if ($ && $.fn) types.forEach(t => $(el).trigger($.Event(t, { which: 13, keyCode: 13, key: 'Enter' })));
+  }
+}
+chrome.runtime.onMessage.addListener((m, sender, reply) => {
+  if (!m || m.type !== 'nmm-enter' || !sender.tab || !/(^|\.)monbureaunumerique\.fr$/.test(new URL(sender.tab.url || sender.url).hostname)) return;
+  chrome.scripting.executeScript({ target: { tabId: sender.tab.id, allFrames: true }, world: 'MAIN', func: pressEnterMain, args: [m.how === 'jquery' ? 'jquery' : 'native'] })
+    .then(() => reply({ ok: true }), e => reply({ ok: false, error: String(e) }));
+  return true;
+});
