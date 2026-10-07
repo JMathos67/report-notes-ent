@@ -108,11 +108,11 @@ async function fillMBN(d) {
     // Walk the grid with Enter (MBN validates the note and moves to the next student).
     const done = new Set(), typed = [];
     const how = ['iso', 'rich', 'main', 'jq'], used = [0, 0, 0, 0];
-    let hi = 0, enterFail = 0;
+    let hi = 0, enterFail = 0, pageDiag = '';
     const press = async h => {
       if (h === 'iso') enter(note0());
       else if (h === 'rich') enter(note0(), true);
-      else { try { await chrome.runtime.sendMessage({ type: 'nmm-enter', how: h === 'main' ? 'native' : 'jquery' }); } catch (e) { /* no background */ } }
+      else { try { const r = await chrome.runtime.sendMessage({ type: 'nmm-enter', how: h === 'main' ? 'native' : 'jquery' }); if (r && !pageDiag) pageDiag = r.ok ? (r.d ? 'jQuery ' + (r.d.jq ? 'présent' : 'absent') + ', keyCode à la création ' + r.d.kc : 'champ Note absent du contexte page') : 'erreur ' + r.error; } catch (e) { pageDiag = 'pas de réponse du fond : ' + e; } }
     };
     const note0 = () => D.querySelector('#js-eval-eleve__note');
     const cur = () => cells.findIndex(c => { const x = boxOf(c); return x && x.checked; });
@@ -162,7 +162,7 @@ async function fillMBN(d) {
     hideUi();
     alert('✅ ' + done.size + ' / ' + d.s.length + ' saisie(s) pour ' + d.c + '.\n' +
       (pb.length ? '\n⚠️ À vérifier / faire à la main :\n- ' + pb.join('\n- ') : '\nAucun problème.') +
-      '\n\n[Entrée — méthode 1 : ' + used[0] + ', 2 : ' + used[1] + ', 3 : ' + used[2] + ', 4 : ' + used[3] + ' ; sans effet : ' + enterFail + ']' +
+      '\n\n[Entrée — méthode 1 : ' + used[0] + ', 2 : ' + used[1] + ', 3 : ' + used[2] + ', 4 : ' + used[3] + ' ; sans effet : ' + enterFail + (pageDiag ? ' ; page : ' + pageDiag : '') + ']' +
       '\nVérifie la grille puis clique sur « Valider ».');
   } catch (e) {
     hideUi();

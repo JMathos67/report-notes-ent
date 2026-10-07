@@ -24,19 +24,26 @@ chrome.webRequest.onHeadersReceived.addListener(async details => {
 // isolated world. Only accepted from a tab showing MBN, and only to press Enter in the note field.
 function pressEnterMain(how) {
   const el = document.querySelector('#js-eval-eleve__note');
-  if (!el) return;
+  if (!el) return null;
   el.focus();
   const types = ['keydown', 'keypress', 'keyup'];
+  const $ = window.jQuery || window.$;
+  const diag = { jq: !!($ && $.fn), kc: new KeyboardEvent('keydown', { keyCode: 13 }).keyCode };
   if (how === 'native') {
-    types.forEach(t => el.dispatchEvent(new KeyboardEvent(t, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, charCode: 13, bubbles: true, cancelable: true, composed: true, view: window })));
-  } else {
-    const $ = window.jQuery || window.$;
-    if ($ && $.fn) types.forEach(t => $(el).trigger($.Event(t, { which: 13, keyCode: 13, key: 'Enter' })));
+    // Some browsers ignore keyCode/which in the constructor: force them on the event itself.
+    types.forEach(t => {
+      const ev = new KeyboardEvent(t, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, charCode: t === 'keypress' ? 13 : 0, bubbles: true, cancelable: true, composed: true, view: window });
+      [['keyCode', 13], ['which', 13], ['charCode', t === 'keypress' ? 13 : 0]].forEach(([k, v]) => { if (ev[k] !== v) { try { Object.defineProperty(ev, k, { get: () => v }); } catch (e) { /* read-only */ } } });
+      el.dispatchEvent(ev);
+    });
+  } else if ($ && $.fn) {
+    types.forEach(t => $(el).trigger($.Event(t, { which: 13, keyCode: 13, key: 'Enter' })));
   }
+  return diag;
 }
 chrome.runtime.onMessage.addListener((m, sender, reply) => {
   if (!m || m.type !== 'nmm-enter' || !sender.tab || !/(^|\.)monbureaunumerique\.fr$/.test(new URL(sender.tab.url || sender.url).hostname)) return;
   chrome.scripting.executeScript({ target: { tabId: sender.tab.id, allFrames: true }, world: 'MAIN', func: pressEnterMain, args: [m.how === 'jquery' ? 'jquery' : 'native'] })
-    .then(() => reply({ ok: true }), e => reply({ ok: false, error: String(e) }));
+    .then(res => reply({ ok: true, d: (res || []).map(x => x.result).filter(Boolean)[0] || null }), e => reply({ ok: false, error: String(e) }));
   return true;
 });
