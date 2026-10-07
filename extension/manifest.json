@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Report de notes vers l'ENT",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Reporte dans la grille d'évaluation de MBN (ENT) les notes d'une activité Moodle. Tout reste sur l'ordinateur.",
   "permissions": [
     "storage",

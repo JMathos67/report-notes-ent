@@ -59,7 +59,13 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
   (async () => {
     if (m.type === 'nmm-detach') { if (attached.delete(tabId)) await chrome.debugger.detach({ tabId }); return reply({ ok: true }); }
     if (!attached.has(tabId)) { await chrome.debugger.attach({ tabId }, '1.3'); attached.add(tabId); }
-    if (m.text) await cdp(tabId, 'Input.insertText', { text: String(m.text).slice(0, 20) });
+    for (const ch of String(m.text || '').slice(0, 20)) {
+      const dg = /[0-9]/.test(ch);
+      const vk = dg ? 48 + Number(ch) : ch === ',' ? 188 : ch === '.' ? 190 : 0;
+      const k = { key: ch, code: dg ? 'Digit' + ch : ch === ',' ? 'Comma' : ch === '.' ? 'Period' : '', windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk };
+      await cdp(tabId, 'Input.dispatchKeyEvent', Object.assign({ type: 'keyDown', text: ch }, k));
+      await cdp(tabId, 'Input.dispatchKeyEvent', Object.assign({ type: 'keyUp' }, k));
+    }
     if (m.enter) {
       const k = { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 };
       await cdp(tabId, 'Input.dispatchKeyEvent', Object.assign({ type: 'keyDown', text: '\r' }, k));
