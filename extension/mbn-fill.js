@@ -71,8 +71,10 @@ async function fillMBN(d) {
     };
 
     const fire = (el, types) => types.forEach(t => el.dispatchEvent(new Event(t, { bubbles: true })));
-    const enter = el => ['keydown', 'keypress', 'keyup'].forEach(t => el.dispatchEvent(new KeyboardEvent(t,
-      { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true })));
+    // Enter, in two flavours: the plain one, then a richer one (charCode, composed, view) tried if MBN ignored the first.
+    const enter = (el, rich) => ['keydown', 'keypress', 'keyup'].forEach(t => el.dispatchEvent(new KeyboardEvent(t,
+      Object.assign({ key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true },
+        rich ? { charCode: 13, composed: true, view: D.defaultView || window } : {}))));
     const mouse = (el, types) => types.forEach(t => el.dispatchEvent(new MouseEvent(t, { bubbles: true, cancelable: true, view: window })));
     const boxOf = c => c.querySelector('.selection_eleve_checkbox');
     const checked = () => [...D.querySelectorAll('.selection_eleve_checkbox')].filter(x => x.checked);
@@ -105,6 +107,7 @@ async function fillMBN(d) {
 
     // Walk the grid with Enter (MBN validates the note and moves to the next student).
     const done = new Set(), typed = [];
+    let enterOk = 0, enterRich = 0, enterFail = 0;
     const cur = () => cells.findIndex(c => { const x = boxOf(c); return x && x.checked; });
     showUi(D.defaultView || window);
     if (!(await select(cells[0]))) { hideUi(); alert('Impossible de sélectionner le premier élève : clique dessus à la main puis relance.'); return; }
@@ -130,7 +133,10 @@ async function fillMBN(d) {
       note.focus(); enter(note);   // empty field: Enter simply moves to the next student
       if (idx + 1 >= cells.length) { await sleep(300); break; }
       let moved = false;
-      for (let i = 0; i < 20; i++) { await sleep(20); const j = cur(); if (j > idx && ready(cells[j])) { moved = true; break; } }
+      const waitMoved = async () => { for (let i = 0; i < 20; i++) { await sleep(20); const j = cur(); if (j > idx && ready(cells[j])) return true; } return false; };
+      moved = await waitMoved();
+      if (!moved) { note.focus(); enter(note, true); moved = await waitMoved(); if (moved) enterRich++; }
+      if (moved) enterOk++; else enterFail++;
       if (!moved && !(await select(cells[idx + 1]))) { pb.push('arrêt : impossible de passer à l\'élève suivant après ' + done.size + ' saisie(s)'); break; }
     }
 
@@ -143,7 +149,8 @@ async function fillMBN(d) {
     hideUi();
     alert('✅ ' + done.size + ' / ' + d.s.length + ' saisie(s) pour ' + d.c + '.\n' +
       (pb.length ? '\n⚠️ À vérifier / faire à la main :\n- ' + pb.join('\n- ') : '\nAucun problème.') +
-      '\n\nVérifie la grille puis clique sur « Valider ».');
+      '\n\n[Entrée prise en compte : ' + enterOk + ' fois (dont ' + enterRich + ' en 2e essai), ignorée : ' + enterFail + ' fois]' +
+      '\nVérifie la grille puis clique sur « Valider ».');
   } catch (e) {
     hideUi();
     alert('Erreur extension : ' + (e && e.message || e));
