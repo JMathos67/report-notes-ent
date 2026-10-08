@@ -22,9 +22,20 @@ chrome.webRequest.onHeadersReceived.addListener(async details => {
 
 // Enter sent from the page's own context (MAIN world): some browsers ignore key events built in the extension's
 // isolated world. Only accepted from a tab showing MBN, and only to press Enter in the note field.
-function pressEnterMain(how) {
+function pressEnterMain(how, field) {
   const el = document.querySelector('#js-eval-eleve__note');
   if (!el) return null;
+  if (how === 'mbn') {
+    // Same as MBN's own Enter handler, minus its ':focus' test: mark the field as modified, then validate.
+    /* global champsModifiesEvaluation, traiterEvaluationValider */
+    const f = field === 'motif' ? (document.querySelector('#js-eval-eleve__non-notation') || el) : el;
+    try {
+      if (typeof traiterEvaluationValider !== 'function') return { mbn: false };
+      if (typeof champsModifiesEvaluation !== 'undefined' && Array.isArray(champsModifiesEvaluation)) champsModifiesEvaluation.push(f.id);
+      traiterEvaluationValider(f);
+      return { mbn: true };
+    } catch (e) { return { mbn: false, err: String(e) }; }
+  }
   el.focus();
   const types = ['keydown', 'keypress', 'keyup'];
   const $ = window.jQuery || window.$;
@@ -43,35 +54,7 @@ function pressEnterMain(how) {
 }
 chrome.runtime.onMessage.addListener((m, sender, reply) => {
   if (!m || m.type !== 'nmm-enter' || !sender.tab || !/(^|\.)monbureaunumerique\.fr$/.test(new URL(sender.tab.url || sender.url).hostname)) return;
-  chrome.scripting.executeScript({ target: { tabId: sender.tab.id, allFrames: true }, world: 'MAIN', func: pressEnterMain, args: [m.how === 'jquery' ? 'jquery' : 'native'] })
+  chrome.scripting.executeScript({ target: { tabId: sender.tab.id, allFrames: true }, world: 'MAIN', func: pressEnterMain, args: [['mbn', 'jquery'].includes(m.how) ? m.how : 'native', m.field === 'motif' ? 'motif' : 'note'] })
     .then(res => reply({ ok: true, d: (res || []).map(x => x.result).filter(Boolean)[0] || null }), e => reply({ ok: false, error: String(e) }));
-  return true;
-});
-
-// Compatibility mode: real key presses (trusted events) through chrome.debugger — the optional "debugger" permission.
-const attached = new Set();
-if (chrome.debugger && chrome.debugger.onDetach) chrome.debugger.onDetach.addListener(src => attached.delete(src.tabId));
-const cdp = (tabId, method, params) => chrome.debugger.sendCommand({ tabId }, method, params);
-chrome.runtime.onMessage.addListener((m, sender, reply) => {
-  if (!m || (m.type !== 'nmm-type' && m.type !== 'nmm-detach') || !sender.tab || !chrome.debugger ||
-      !/(^|\.)monbureaunumerique\.fr$/.test(new URL(sender.tab.url || sender.url).hostname)) return;
-  const tabId = sender.tab.id;
-  (async () => {
-    if (m.type === 'nmm-detach') { if (attached.delete(tabId)) await chrome.debugger.detach({ tabId }); return reply({ ok: true }); }
-    if (!attached.has(tabId)) { await chrome.debugger.attach({ tabId }, '1.3'); attached.add(tabId); }
-    for (const ch of String(m.text || '').slice(0, 20)) {
-      const dg = /[0-9]/.test(ch);
-      const vk = dg ? 48 + Number(ch) : ch === ',' ? 188 : ch === '.' ? 190 : 0;
-      const k = { key: ch, code: dg ? 'Digit' + ch : ch === ',' ? 'Comma' : ch === '.' ? 'Period' : '', windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk };
-      await cdp(tabId, 'Input.dispatchKeyEvent', Object.assign({ type: 'keyDown', text: ch }, k));
-      await cdp(tabId, 'Input.dispatchKeyEvent', Object.assign({ type: 'keyUp' }, k));
-    }
-    if (m.enter) {
-      const k = { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 };
-      await cdp(tabId, 'Input.dispatchKeyEvent', Object.assign({ type: 'keyDown', text: '\r' }, k));
-      await cdp(tabId, 'Input.dispatchKeyEvent', Object.assign({ type: 'keyUp' }, k));
-    }
-    reply({ ok: true });
-  })().catch(e => reply({ ok: false, error: String(e) }));
   return true;
 });

@@ -40,5 +40,5 @@ Voir `PRIVACY.md`. En bref : jeton Moodle et liste des cours/activités stockés
 - Elle dépend de la structure des pages MBN : une mise à jour de MBN peut nécessiter une adaptation.
 - Le Moodle doit autoriser le service mobile (« Moodle mobile web service »).
 
-## Version Vivaldi (mode compatibilité)
-Certains navigateurs (Vivaldi) ignorent les touches simulées : la note apparaît dans le panneau de droite mais n'est pas validée. Pour eux, lance `python3 tools/make_vivaldi.py` : il crée `extension-vivaldi/`, identique mais avec la permission « débogueur » et une case « Mode compatibilité (vraies frappes de clavier) » activée par défaut. Charge ce dossier dans `vivaldi://extensions` (mode développeur). Le navigateur affiche un bandeau « débogage » pendant la saisie. Cette version n'est pas destinée au Chrome Web Store.
+## Navigateurs
+Testée dans Chrome et Vivaldi (et tout navigateur basé sur Chromium). Dans Vivaldi, la page MBN perd le focus quand la fenêtre de l'extension se ferme : la touche Entrée simulée y serait ignorée. L'extension appelle donc directement la fonction de validation de MBN (la même que celle déclenchée par Entrée), sans autorisation supplémentaire.

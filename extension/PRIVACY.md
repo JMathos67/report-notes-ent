@@ -2,7 +2,7 @@
 
 **Éditeur** : Thomas Jaeger, enseignant (développeur indépendant, extension gratuite).
 **Contact** : jaeger.thom@gmail.com
-**Dernière mise à jour** : 6 octobre 2026
+**Dernière mise à jour** : 8 octobre 2026
 
 ## Données traitées
 | Donnée | Origine | Où elle est conservée | Durée |
@@ -26,7 +26,6 @@ L'extension communique seulement avec le Moodle de l'enseignant (adresse qu'il a
 | `storage` | Mémoriser localement la connexion à Moodle et la liste des cours/activités |
 | `activeTab` + `scripting` | Saisir les notes dans l'onglet MBN actif, uniquement quand l'enseignant clique sur « 2. Saisir dans MBN » |
 | `webRequest` | Lire une seule fois la redirection de connexion Moodle pour récupérer le jeton d'accès (uniquement pendant la connexion) |
-| `debugger` (uniquement dans la version « Vivaldi » diffusée hors Chrome Web Store) | Envoyer de vraies frappes de clavier (chiffres et Entrée) dans le champ « Note » de MBN quand le navigateur ignore les touches simulées. Utilisée uniquement sur l'onglet MBN actif, pendant la saisie |
 | Accès à `*.monbureaunumerique.fr` | Saisir les notes dans la grille d'évaluation MBN |
 | Accès à l'adresse de son Moodle (demandé à la connexion, une seule adresse) | Lire les cours, groupes et notes via l'API officielle de Moodle |
 

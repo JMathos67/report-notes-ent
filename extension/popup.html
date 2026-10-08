@@ -24,7 +24,7 @@
   .hide{display:none!important}
   body.busy main{cursor:progress}
   body.busy button,body.busy select{pointer-events:none;opacity:.6}
-.chk{display:flex;gap:6px;align-items:center;font-size:12px;margin:10px 0 2px;font-weight:400}.chk input{width:auto;margin:0}.hint{display:block;color:#6b7488;font-size:11px;margin-bottom:6px}</style></head><body>
+</style></head><body>
 <header><img src="icons/icon48.png" alt=""><b>Report de notes vers l'ENT</b><small id="version"></small></header>
 <main>
   <div id="msg" role="status" aria-live="polite"></div>
@@ -50,8 +50,6 @@
     <button id="fill" class="primary" disabled>2. Saisir dans MBN (onglet actif)</button>
     <div class="hint">MBN : ouvre le devoir de la classe, onglet « Évaluation ». Tu cliques toi-même sur « Valider » à la fin.</div>
     <button id="reconnect" class="hide">Se reconnecter à Moodle</button>
-    <label class="chk hide" id="trustedRow"><input type="checkbox" id="trusted"> Mode compatibilité (vraies frappes de clavier)</label>
-    <small class="hint hide" id="trustedHint">Le navigateur affiche un bandeau « débogage » pendant la saisie : c'est normal.</small>
     <div class="links"><a id="refresh">↻ Actualiser cours et activités</a><a id="reset">Se déconnecter</a></div>
   </div>
 </main>

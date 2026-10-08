@@ -158,8 +158,6 @@ async function loadGrades() {
   msg('Notes chargées. Choisis la classe, ouvre sa grille dans MBN, puis clique sur « 2 ».');
 }
 
-const hasDbg = (chrome.runtime.getManifest().permissions || []).includes('debugger');
-
 async function fillMbn() {
   const cls = $('group').value, payload = byClass[cls];
   if (!payload || !payload.s.length) return msg('Aucune note à saisir pour ' + cls + '.', true);
@@ -167,8 +165,7 @@ async function fillMbn() {
   let host = '';
   try { host = new URL(tab.url).hostname; } catch (e) { /* no url */ }
   if (!/(^|\.)monbureaunumerique\.fr$/.test(host)) return msg('Ouvre d\'abord la grille du devoir dans MBN, dans l\'onglet actif.', true);
-  const ok = hasDbg && (await chrome.storage.local.get('trusted')).trusted !== false;
-  await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: fillMBN, args: [Object.assign({}, payload, { t: !!ok })] });
+  await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: fillMBN, args: [payload] });
   delete byClass[cls];   // a class's grades are forgotten once sent
   await writeCache();
   showClasses();
@@ -233,10 +230,6 @@ async function start() {
   conf = st.conf || null;
   if (st.catalog) catalog = st.catalog;
   $('version').textContent = 'v' + chrome.runtime.getManifest().version;
-  if (hasDbg) {   // "Vivaldi" build only: real key presses through the debugger API, on by default
-    const tr = (await chrome.storage.local.get('trusted')).trusted !== false;
-    $('trustedRow').classList.remove('hide'); $('trusted').checked = tr; $('trustedHint').classList.toggle('hide', !tr);
-  }
   if (!conf) return show('setup');
   show('main');
   await loadCourses(false);
@@ -254,10 +247,6 @@ $('course').onchange = run(async () => { await chrome.storage.local.set({ course
 $('item').onchange = run(async () => { msg(''); await chrome.storage.local.set({ ['item_' + course().id]: item().id }); await useCache(); });
 $('load').onclick = run(loadGrades);
 $('fill').onclick = run(fillMbn);
-$('trusted').onchange = async () => {
-  await chrome.storage.local.set({ trusted: $('trusted').checked });
-  $('trustedHint').classList.toggle('hide', !$('trusted').checked);
-};
 chrome.storage.onChanged.addListener((ch, area) => { if (area === 'local' && ch.conf && ch.conf.newValue && !conf) run(start)(); });
 chrome.action.setBadgeText({ text: '' });
 run(start)();
